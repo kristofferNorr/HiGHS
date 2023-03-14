@@ -45,7 +45,7 @@ jobs:
           export LD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH
           export DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH
           ls $REPAIR_LIBRARY_PATH
-          python -m cibuildwheel --output-dir dist ./highs/python
+          python -m cibuildwheel --output-dir ./highs/python/dist ./highs/python
 
         env:
           CIBW_ENVIRONMENT: REPAIR_LIBRARY_PATH=${{runner.workspace}}/installs/highs/lib 
@@ -53,31 +53,30 @@ jobs:
             DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH delocate-listdeps {wheel} &&
             DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH delocate-wheel --require-archs {delocate_archs} -w {dest_dir} {wheel}
 
-  make_sdist_mac:
-    name: Make SDist
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0  # Optional, use if you use setuptools_scm
-        submodules: false # Optional, use if you have submodules
+      - name: Make SDist
+        runs-on: macos-latest
+        steps:
+        - uses: actions/checkout@v3
+          with:
+            fetch-depth: 0  # Optional, use if you use setuptools_scm
+            submodules: false # Optional, use if you have submodules
 
-    - name: Build SDist
-      run: pipx run build --sdist ./highs/python
+      - name: Build SDist
+        run: pipx run build --sdist ./highs/python
 
-    - uses: actions/upload-artifact@v3
-      with:
-        path: ./highs/python/dist/*.tar.gz
+      - uses: actions/upload-artifact@v3
+        with:
+          path: ./highs/python/dist/*.tar.gz
 
   upload_all_macos:
-    needs: [build_wheels_mac, make_sdist_mac]
+    needs: [build_wheels_mac]
     runs-on: macos-latest
     # if: github.event_name == 'release' && github.event.action == 'published'
     steps:
     - uses: actions/download-artifact@v3
       with:
         name: artifact
-        path: dist
+        path: ./highs/python/dist
 
     - uses: pypa/gh-action-pypi-publish@v1.5.0
       with:
