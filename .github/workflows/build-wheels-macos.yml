@@ -61,8 +61,8 @@ jobs:
             fetch-depth: 0  # Optional, use if you use setuptools_scm
             submodules: false # Optional, use if you have submodules
 
-      # - name: Build SDist
-      #   run: pipx run build --sdist ./highs/python
+      - name: Build SDist
+        run: pipx run build --sdist ./highs/python
 
       # - uses: actions/upload-artifact@v3
       #   with:
