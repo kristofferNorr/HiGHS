@@ -20,10 +20,11 @@ jobs:
         run: |
           cmake -E make_directory ${{runner.workspace}}\installs
           set HIGHS_LIB_DIR=${{runner.workspace}}\installs\highs\lib
-          echo "PATH=$PATH:$HIGHS_LIB_DIR" >> $GITHUB_ENV
-          echo "LIBPATH=$LIBPATH:$HIGHS_LIB_DIR" >> $GITHUB_ENV
-          echo "PYTHONPATH=$PYTHONPATH:$HIGHS_LIB_DIR" >> $GITHUB_ENV
-          echo $LIBPATH
+          echo "PATH=${PATH}:${HIGHS_LIB_DIR}" >> $GITHUB_ENV
+          echo "LIBPATH=${LIBPATH}:${HIGHS_LIB_DIR}" >> $GITHUB_ENV
+          echo "PYTHONPATH=${PYTHONPATH}:${HIGHS_LIB_DIR}" >> $GITHUB_ENV
+          echo $%LIBPATH%
+          set
 
       # - name: Configure CMake
       #   shell: bash
