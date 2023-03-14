@@ -1,13 +1,13 @@
-name: test-python-api
+name: test-python-api-windows
 
-on: [ pull_request]
+on: [push, pull_request]
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [windows-10]
         python: [3.9]
 
     steps:
@@ -30,10 +30,11 @@ jobs:
         # Execute the build.  You can specify a specific target with "--target <NAME>"
         run: |
           cmake --build . --parallel --config Release
-          make install
-          HIGHS_LIB_DIR=${{runner.workspace}}/installs/highs/lib
-          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HIGHS_LIB_DIR" >> $GITHUB_ENV
-          echo "DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$HIGHS_LIB_DIR" >> $GITHUB_ENV
+          cmake --install . --config Release
+          set HIGHS_LIB_DIR=${{runner.workspace}}/installs/highs/lib
+          echo "PATH=$PATH:$HIGHS_LIB_DIR" >> $GITHUB_ENV
+          echo "LIBPATH=$LIBPATH:$HIGHS_LIB_DIR" >> $GITHUB_ENV
+          echo "PYTHONPATH=$PYTHONPATH:$HIGHS_LIB_DIR" >> $GITHUB_ENV
 
       - name: Install correct python version
         uses: actions/setup-python@v3

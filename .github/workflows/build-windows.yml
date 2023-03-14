@@ -1,6 +1,6 @@
 name: build-windows
 
-on: [push, pull_request]
+on: [ pull_request]
 
 jobs:
   fast_build_release:
@@ -43,6 +43,11 @@ jobs:
         # Execute the build.  You can specify a specific target with "--target <NAME>"
         run: cmake --install .
 
+      - name: pip install
+        working-directory: ${{runner.workspace}}/build
+        shell: bash
+        # Execute the build.  You can specify a specific target with "--target <NAME>"
+      
   windows_release:
     runs-on: windows-latest
 
