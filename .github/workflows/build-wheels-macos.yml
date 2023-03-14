@@ -61,24 +61,24 @@ jobs:
             fetch-depth: 0  # Optional, use if you use setuptools_scm
             submodules: false # Optional, use if you have submodules
 
-      - name: Build SDist
-        run: pipx run build --sdist ./highs/python
+      # - name: Build SDist
+      #   run: pipx run build --sdist ./highs/python
 
-      - uses: actions/upload-artifact@v3
-        with:
-          path: ./highs/python/dist/*.tar.gz
+      # - uses: actions/upload-artifact@v3
+      #   with:
+      #     path: ./highs/python/dist/*.tar.gz
 
-  upload_all_macos:
-    needs: [build_wheels_mac]
-    runs-on: macos-latest
-    # if: github.event_name == 'release' && github.event.action == 'published'
-    steps:
-    - uses: actions/download-artifact@v3
-      with:
-        name: artifact
-        path: ./highs/python/dist
+  # upload_all_macos:
+  #   needs: [build_wheels_mac]
+  #   runs-on: macos-latest
+  #   # if: github.event_name == 'release' && github.event.action == 'published'
+  #   steps:
+  #   - uses: actions/download-artifact@v3
+  #     with:
+  #       name: artifact
+  #       path: ./highs/python/dist
 
-    - uses: pypa/gh-action-pypi-publish@v1.5.0
-      with:
-        user: __token__
-        password: ${{ secrets.pypi_password }}
+  #   - uses: pypa/gh-action-pypi-publish@v1.5.0
+  #     with:
+  #       user: __token__
+  #       password: ${{ secrets.pypi_password }}
