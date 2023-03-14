@@ -1,6 +1,6 @@
 name: build-wheels-linux
 
-on: [push, pull_request]
+on: [ pull_request]
 
 jobs:
   build_wheels_linux:
