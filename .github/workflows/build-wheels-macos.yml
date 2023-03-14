@@ -45,13 +45,7 @@ jobs:
           export LD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH
           export DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH
           ls $REPAIR_LIBRARY_PATH
-          python -m cibuildwheel --output-dir wheelhouse ./highs/python
-
-        # export REPAIR_LIBRARY_PATH=${{runner.workspace}}/installs/highs/lib
-        # export LD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH
-        # export DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH
-        # ls $REPAIR_LIBRARY_PATH
-        # to supply options, put them in 'env', like:
+          python -m cibuildwheel --output-dir dist ./highs/python
 
         env:
           CIBW_ENVIRONMENT: REPAIR_LIBRARY_PATH=${{runner.workspace}}/installs/highs/lib 
@@ -59,6 +53,33 @@ jobs:
             DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH delocate-listdeps {wheel} &&
             DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH delocate-wheel --require-archs {delocate_archs} -w {dest_dir} {wheel}
 
-      - uses: actions/upload-artifact@v2
-        with:
-          path: ./wheelhouse/*.whl
+  make_sdist_mac:
+    name: Make SDist
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Optional, use if you use setuptools_scm
+        submodules: false # Optional, use if you have submodules
+
+    - name: Build SDist
+      run: pipx run build --sdist ./highs/python
+
+    - uses: actions/upload-artifact@v3
+      with:
+        path: ./highs/python/dist/*.tar.gz
+
+  upload_all_macos:
+    needs: [build_wheels_mac, make_sdist_mac]
+    runs-on: macos-latest
+    # if: github.event_name == 'release' && github.event.action == 'published'
+    steps:
+    - uses: actions/download-artifact@v3
+      with:
+        name: artifact
+        path: dist
+
+    - uses: pypa/gh-action-pypi-publish@v1.5.0
+      with:
+        user: __token__
+        password: ${{ secrets.pypi_password }}
