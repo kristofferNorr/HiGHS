@@ -23,7 +23,7 @@ jobs:
           echo "PATH=${PATH}:${HIGHS_LIB_DIR}" >> $GITHUB_ENV
           echo "LIBPATH=${LIBPATH}:${HIGHS_LIB_DIR}" >> $GITHUB_ENV
           echo "PYTHONPATH=${PYTHONPATH}:${HIGHS_LIB_DIR}" >> $GITHUB_ENV
-          echo %LIBPATH%
+          echo ${LIBPATH}
 
       # - name: Configure CMake
       #   shell: bash
