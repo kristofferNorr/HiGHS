@@ -22,6 +22,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Build wheels
+        working-directory: ${{runner.workspace}}/build
         uses: pypa/cibuildwheel@v2.12.1
 
       - uses: actions/upload-artifact@v3
