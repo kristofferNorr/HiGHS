@@ -63,8 +63,8 @@ jobs:
   #       fetch-depth: 0  # Optional, use if you use setuptools_scm
   #       submodules: false # Optional, use if you have submodules
 
-    - name: Build SDist
-      run: pipx run build --sdist ./highs/python
+      - name: Build SDist
+        run: pipx run build --sdist ./highs/python
       # : |
         # export REPAIR_LIBRARY_PATH=${{runner.workspace}}/installs/highs/lib
         # export LD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH
