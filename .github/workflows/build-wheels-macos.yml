@@ -4,7 +4,7 @@ on: [push]
 
 jobs:
   build_wheels_mac:
-    name: Build wheels on ${{ matrix.os }}
+    name: Build wheels on macos
     runs-on: macos-latest    
 
     steps:
