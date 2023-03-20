@@ -1,19 +1,19 @@
+# [Example](@id example-py)
+
 ## Initialize HiGHS
 
 HiGHS must be initialized before making calls to the HiGHS Python
 library, and the examples below assume that it has been done
 
-```
+```python
 import highspy
 import numpy as np
-
-# Highs h
 h = highspy.Highs()
 ```
 
 ## Load a model
 
-```
+```python
 # Load a model from MPS file model.mps
 filename = 'model.mps'
 h.readModel(filename)
@@ -23,7 +23,7 @@ h.readModel(filename)
 
 Build the model
 
-```
+```raw
 minimize    f  =  x0 +  x1
 subject to              x1 <= 7
             5 <=  x0 + 2x1 <= 15
@@ -31,8 +31,8 @@ subject to              x1 <= 7
             0 <= x0 <= 4; 1 <= x1
 ```
 
-Firstly, one variable at a time, via a sequence of calls to __addVar__ and __addRow__.
-```
+Firstly, one variable at a time, via a sequence of calls to `addVar` and `addRow`:s
+```python
 inf = highspy.kHighsInf
 # Define two variables, first using identifiers for the bound values,
 # and then using constants
@@ -70,15 +70,15 @@ num_nz = 2
 value = np.array([3, 2])
 h.addRow(6, inf, num_nz, index, value)
 
-# Access LP 
+# Access LP
 lp = h.getLp()
 num_nz = h.getNumNz()
 print('LP has ', lp.num_col_, ' columns', lp.num_row_, ' rows and ', num_nz, ' nonzeros')
-
 ```
-Alternatively, via calls to __addCols__ and __addRows__.
 
-```
+Alternatively, via calls to `addCols` and `addRows`.
+
+```python
 inf = highspy.kHighsInf
 # The constraint matrix is defined with the rows below, but parameters
 # for an empty (column-wise) matrix must be passed
@@ -100,10 +100,13 @@ value = np.array([1, 1, 2, 3, 2], dtype=np.double)
 h.addRows(3, lower, upper, num_nz, start, index, value)
 ```
 
+ * `passColName`
+ * `passRowName`
+
 ## Pass a model
 
 Pass a model from a HighsLp instance
-```
+```python
 inf = highspy.kHighsInf
 # Define a HighsLp instance
 lp = highspy.HighsLp()
@@ -124,12 +127,13 @@ h.passModel(lp)
 ## Solve a model
 
 The incumbent model in HiGHS is solved by calling
-```
+```python
 h.run()
 ```
 
-## Print solution information 
-```
+## Print solution information
+
+```python
 solution = h.getSolution()
 basis = h.getBasis()
 info = h.getInfo()
@@ -142,3 +146,52 @@ print('Primal solution status = ', h.solutionStatusToString(info.primal_solution
 print('Dual solution status = ', h.solutionStatusToString(info.dual_solution_status))
 print('Basis validity = ', h.basisValidityToString(info.basis_validity))
 ```
+
+## Extract results
+
+ * `getModelStatus`
+ * `getSolution`
+ * `getBasis`
+
+## Report results
+
+ * `writeSolution`
+
+## [Option values](@id example-py-option-values)
+
+ * `setOptionValue`
+ * `getOptionValue`
+
+## Get model data
+
+ * `getNumCols`
+ * `getNumRows`
+ * `getNumEntries`
+ * `getCol`
+ * `getRow`
+ * `getColEntries`
+ * `getRowEntries`
+ * `getCols`
+ * `getRows`
+ * `getColsEntries`
+ * `getRowsEntries`
+ * `getCoeff`
+
+## Modify model data
+
+ * `changeObjectiveSense`
+ * `changeColCost`
+ * `changeColBounds`
+ * `changeRowBounds`
+ * `changeColsCosts`
+ * `changeColsBounds`
+ * `changeRowsBounds`
+ * `changeCoeff`
+
+## Set solution
+
+ * `setSolution`
+
+## Set basis
+
+ * `setBasis`
