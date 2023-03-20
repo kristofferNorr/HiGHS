@@ -53,22 +53,22 @@ jobs:
             DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH delocate-listdeps {wheel} &&
             DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH delocate-wheel --require-archs {delocate_archs} -w {dest_dir} {wheel}
 
-  make_sdist:
-    needs: [build_wheels_mac]
-    name: Make SDist
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0  # Optional, use if you use setuptools_scm
-        submodules: false # Optional, use if you have submodules
+  # make_sdist:
+  #   needs: [build_wheels_mac]
+  #   name: Make SDist
+  #   runs-on: macos-latest
+  #   steps:
+  #   - uses: actions/checkout@v3
+  #     with:
+  #       fetch-depth: 0  # Optional, use if you use setuptools_scm
+  #       submodules: false # Optional, use if you have submodules
 
     - name: Build SDist
-      run: |
-        export REPAIR_LIBRARY_PATH=${{runner.workspace}}/installs/highs/lib
-        export LD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH
-        export DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH
-        pipx run build --sdist ./highs/python
+      run: pipx run build --sdist ./highs/python
+      # : |
+        # export REPAIR_LIBRARY_PATH=${{runner.workspace}}/installs/highs/lib
+        # export LD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH
+        # export DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH
 
     - uses: actions/upload-artifact@v3
       with:
