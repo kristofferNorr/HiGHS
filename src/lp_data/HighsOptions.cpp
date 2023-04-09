@@ -2,12 +2,10 @@
 /*                                                                       */
 /*    This file is part of the HiGHS linear optimization suite           */
 /*                                                                       */
-/*    Written and engineered 2008-2022 at the University of Edinburgh    */
+/*    Written and engineered 2008-2023 by Julian Hall, Ivet Galabova,    */
+/*    Leona Gottwald and Michael Feldmeier                               */
 /*                                                                       */
 /*    Available as open-source under the MIT License                     */
-/*                                                                       */
-/*    Authors: Julian Hall, Ivet Galabova, Leona Gottwald and Michael    */
-/*    Feldmeier                                                          */
 /*                                                                       */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /**@file lp_data/HighsOptions.cpp
@@ -17,6 +15,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cctype>
 
 // void setLogOptions();
 
@@ -27,17 +26,18 @@ void highsOpenLogFile(HighsLogOptions& log_options,
   OptionStatus status =
       getOptionIndex(log_options, "log_file", option_records, index);
   assert(status == OptionStatus::kOk);
-  if (log_options.log_file_stream != NULL) {
+  if (log_options.log_stream != NULL) {
     // Current log file stream is not null, so flush and close it
-    fflush(log_options.log_file_stream);
-    fclose(log_options.log_file_stream);
+    fflush(log_options.log_stream);
+    fclose(log_options.log_stream);
   }
   if (log_file.compare("")) {
-    // New log file name is not empty, so open it
-    log_options.log_file_stream = fopen(log_file.c_str(), "w");
+    // New log file name is not empty, so open it, appending if
+    // possible
+    log_options.log_stream = fopen(log_file.c_str(), "a");
   } else {
     // New log file name is empty, so set the stream to null
-    log_options.log_file_stream = NULL;
+    log_options.log_stream = NULL;
   }
   OptionRecordString& option = *(OptionRecordString*)option_records[index];
   option.assignvalue(log_file);
@@ -56,14 +56,25 @@ static std::string optionEntryTypeToString(const HighsOptionType type) {
 }
 
 bool commandLineOffChooseOnOk(const HighsLogOptions& report_log_options,
-                              const string& value) {
+                              const string& name, const string& value) {
   if (value == kHighsOffString || value == kHighsChooseString ||
       value == kHighsOnString)
     return true;
+  highsLogUser(
+      report_log_options, HighsLogType::kWarning,
+      "Value \"%s\" for %s option is not one of \"%s\", \"%s\" or \"%s\"\n",
+      value.c_str(), name.c_str(), kHighsOffString.c_str(),
+      kHighsChooseString.c_str(), kHighsOnString.c_str());
+  return false;
+}
+
+bool commandLineOffOnOk(const HighsLogOptions& report_log_options,
+                        const string& name, const string& value) {
+  if (value == kHighsOffString || value == kHighsOnString) return true;
   highsLogUser(report_log_options, HighsLogType::kWarning,
-               "Value \"%s\" is not one of \"%s\", \"%s\" or \"%s\"\n",
-               value.c_str(), kHighsOffString.c_str(),
-               kHighsChooseString.c_str(), kHighsOnString.c_str());
+               "Value \"%s\" for %s option is not one of \"%s\" or \"%s\"\n",
+               value.c_str(), name.c_str(), kHighsOffString.c_str(),
+               kHighsOnString.c_str());
   return false;
 }
 
@@ -72,10 +83,11 @@ bool commandLineSolverOk(const HighsLogOptions& report_log_options,
   if (value == kSimplexString || value == kHighsChooseString ||
       value == kIpmString)
     return true;
-  highsLogUser(report_log_options, HighsLogType::kWarning,
-               "Value \"%s\" is not one of \"%s\", \"%s\" or \"%s\"\n",
-               value.c_str(), kSimplexString.c_str(),
-               kHighsChooseString.c_str(), kIpmString.c_str());
+  highsLogUser(
+      report_log_options, HighsLogType::kWarning,
+      "Value \"%s\" for solver option is not one of \"%s\", \"%s\" or \"%s\"\n",
+      value.c_str(), kSimplexString.c_str(), kHighsChooseString.c_str(),
+      kIpmString.c_str());
   return false;
 }
 
@@ -336,13 +348,20 @@ OptionStatus checkOptionValue(const HighsLogOptions& report_log_options,
   // Setting a string option. For some options only particular values
   // are permitted, so check them
   if (option.name == kPresolveString) {
-    if (!commandLineOffChooseOnOk(report_log_options, value) && value != "mip")
+    if (!commandLineOffChooseOnOk(report_log_options, option.name, value) &&
+        value != "mip")
       return OptionStatus::kIllegalValue;
   } else if (option.name == kSolverString) {
     if (!commandLineSolverOk(report_log_options, value))
       return OptionStatus::kIllegalValue;
   } else if (option.name == kParallelString) {
-    if (!commandLineOffChooseOnOk(report_log_options, value))
+    if (!commandLineOffChooseOnOk(report_log_options, option.name, value))
+      return OptionStatus::kIllegalValue;
+  } else if (option.name == kRunCrossoverString) {
+    if (!commandLineOffChooseOnOk(report_log_options, option.name, value))
+      return OptionStatus::kIllegalValue;
+  } else if (option.name == kRangingString) {
+    if (!commandLineOffOnOk(report_log_options, option.name, value))
       return OptionStatus::kIllegalValue;
   }
   return OptionStatus::kOk;
@@ -557,8 +576,8 @@ OptionStatus passLocalOptions(const HighsLogOptions& report_log_options,
   //  std::string empty_file = "";
   //  std::string from_log_file = from_options.log_file;
   //  std::string original_to_log_file = to_options.log_file;
-  //  FILE* original_to_log_file_stream =
-  //  to_options.log_options.log_file_stream;
+  //  FILE* original_to_log_stream =
+  //  to_options.log_options.log_stream;
   HighsInt num_options = to_options.records.size();
   // Check all the option values before setting any of them - in case
   // to_options are the main Highs options. Checks are only needed for
@@ -622,7 +641,7 @@ OptionStatus passLocalOptions(const HighsLogOptions& report_log_options,
   /*
   if (from_log_file.compare(original_to_log_file)) {
     // The log file name has changed
-    if (from_options.log_options.log_file_stream &&
+    if (from_options.log_options.log_stream &&
         !original_to_log_file.compare(empty_file)) {
       // The stream corresponding to from_log_file is non-null and the
       // original log file name was empty, so to_options inherits the
@@ -632,9 +651,9 @@ OptionStatus passLocalOptions(const HighsLogOptions& report_log_options,
       // This ensures that the stream to Highs.log opened in
       // RunHighs.cpp is retained unless the log file name is changed.
       assert(from_log_file.compare(empty_file));
-      assert(!original_to_log_file_stream);
-      to_options.log_options.log_file_stream =
-          from_options.log_options.log_file_stream;
+      assert(!original_to_log_stream);
+      to_options.log_options.log_stream =
+          from_options.log_options.log_stream;
     } else {
       highsOpenLogFile(to_options, to_options.log_file);
     }
@@ -643,94 +662,109 @@ OptionStatus passLocalOptions(const HighsLogOptions& report_log_options,
   return OptionStatus::kOk;
 }
 
-OptionStatus getLocalOptionValue(
-    const HighsLogOptions& report_log_options, const std::string& name,
-    const std::vector<OptionRecord*>& option_records, bool& value) {
+OptionStatus getLocalOptionValues(
+    const HighsLogOptions& report_log_options, const std::string& option,
+    const std::vector<OptionRecord*>& option_records, bool* current_value,
+    bool* default_value) {
   HighsInt index;
   OptionStatus status =
-      getOptionIndex(report_log_options, name, option_records, index);
+      getOptionIndex(report_log_options, option, option_records, index);
   if (status != OptionStatus::kOk) return status;
   HighsOptionType type = option_records[index]->type;
   if (type != HighsOptionType::kBool) {
     highsLogUser(report_log_options, HighsLogType::kError,
                  "getLocalOptionValue: Option \"%s\" requires value of type "
                  "%s, not bool\n",
-                 name.c_str(), optionEntryTypeToString(type).c_str());
+                 option.c_str(), optionEntryTypeToString(type).c_str());
     return OptionStatus::kIllegalValue;
   }
-  OptionRecordBool option = ((OptionRecordBool*)option_records[index])[0];
-  value = *option.value;
+  OptionRecordBool& option_record =
+      ((OptionRecordBool*)option_records[index])[0];
+  if (current_value) *current_value = *(option_record.value);
+  if (default_value) *default_value = option_record.default_value;
   return OptionStatus::kOk;
 }
 
-OptionStatus getLocalOptionValue(
-    const HighsLogOptions& report_log_options, const std::string& name,
-    const std::vector<OptionRecord*>& option_records, HighsInt& value) {
+OptionStatus getLocalOptionValues(
+    const HighsLogOptions& report_log_options, const std::string& option,
+    const std::vector<OptionRecord*>& option_records, HighsInt* current_value,
+    HighsInt* min_value, HighsInt* max_value, HighsInt* default_value) {
   HighsInt index;
   OptionStatus status =
-      getOptionIndex(report_log_options, name, option_records, index);
+      getOptionIndex(report_log_options, option, option_records, index);
   if (status != OptionStatus::kOk) return status;
   HighsOptionType type = option_records[index]->type;
   if (type != HighsOptionType::kInt) {
     highsLogUser(report_log_options, HighsLogType::kError,
                  "getLocalOptionValue: Option \"%s\" requires value of type "
                  "%s, not HighsInt\n",
-                 name.c_str(), optionEntryTypeToString(type).c_str());
+                 option.c_str(), optionEntryTypeToString(type).c_str());
     return OptionStatus::kIllegalValue;
   }
-  OptionRecordInt option = ((OptionRecordInt*)option_records[index])[0];
-  value = *option.value;
+  OptionRecordInt& option_record = ((OptionRecordInt*)option_records[index])[0];
+  if (current_value) *current_value = *(option_record.value);
+  if (min_value) *min_value = option_record.lower_bound;
+  if (max_value) *max_value = option_record.upper_bound;
+  if (default_value) *default_value = option_record.default_value;
   return OptionStatus::kOk;
 }
 
-OptionStatus getLocalOptionValue(
-    const HighsLogOptions& report_log_options, const std::string& name,
-    const std::vector<OptionRecord*>& option_records, double& value) {
+OptionStatus getLocalOptionValues(
+    const HighsLogOptions& report_log_options, const std::string& option,
+    const std::vector<OptionRecord*>& option_records, double* current_value,
+    double* min_value, double* max_value, double* default_value) {
   HighsInt index;
   OptionStatus status =
-      getOptionIndex(report_log_options, name, option_records, index);
+      getOptionIndex(report_log_options, option, option_records, index);
   if (status != OptionStatus::kOk) return status;
   HighsOptionType type = option_records[index]->type;
   if (type != HighsOptionType::kDouble) {
     highsLogUser(report_log_options, HighsLogType::kError,
                  "getLocalOptionValue: Option \"%s\" requires value of type "
                  "%s, not double\n",
-                 name.c_str(), optionEntryTypeToString(type).c_str());
+                 option.c_str(), optionEntryTypeToString(type).c_str());
     return OptionStatus::kIllegalValue;
   }
-  OptionRecordDouble option = ((OptionRecordDouble*)option_records[index])[0];
-  value = *option.value;
+  OptionRecordDouble& option_record =
+      ((OptionRecordDouble*)option_records[index])[0];
+  if (current_value) *current_value = *(option_record.value);
+  if (min_value) *min_value = option_record.lower_bound;
+  if (max_value) *max_value = option_record.upper_bound;
+  if (default_value) *default_value = option_record.default_value;
   return OptionStatus::kOk;
 }
 
-OptionStatus getLocalOptionValue(
-    const HighsLogOptions& report_log_options, const std::string& name,
-    const std::vector<OptionRecord*>& option_records, std::string& value) {
+OptionStatus getLocalOptionValues(
+    const HighsLogOptions& report_log_options, const std::string& option,
+    const std::vector<OptionRecord*>& option_records,
+    std::string* current_value, std::string* default_value) {
   HighsInt index;
   OptionStatus status =
-      getOptionIndex(report_log_options, name, option_records, index);
+      getOptionIndex(report_log_options, option, option_records, index);
   if (status != OptionStatus::kOk) return status;
   HighsOptionType type = option_records[index]->type;
   if (type != HighsOptionType::kString) {
     highsLogUser(report_log_options, HighsLogType::kError,
                  "getLocalOptionValue: Option \"%s\" requires value of type "
                  "%s, not string\n",
-                 name.c_str(), optionEntryTypeToString(type).c_str());
+                 option.c_str(), optionEntryTypeToString(type).c_str());
     return OptionStatus::kIllegalValue;
   }
-  OptionRecordString option = ((OptionRecordString*)option_records[index])[0];
-  value = *option.value;
+  OptionRecordString& option_record =
+      ((OptionRecordString*)option_records[index])[0];
+  if (current_value) *current_value = *(option_record.value);
+  if (default_value) *default_value = option_record.default_value;
   return OptionStatus::kOk;
 }
 
 OptionStatus getLocalOptionType(
-    const HighsLogOptions& report_log_options, const std::string& name,
-    const std::vector<OptionRecord*>& option_records, HighsOptionType& type) {
+    const HighsLogOptions& report_log_options, const std::string& option,
+    const std::vector<OptionRecord*>& option_records, HighsOptionType* type) {
   HighsInt index;
   OptionStatus status =
-      getOptionIndex(report_log_options, name, option_records, index);
+      getOptionIndex(report_log_options, option, option_records, index);
   if (status != OptionStatus::kOk) return status;
-  type = option_records[index]->type;
+  if (type) *type = option_records[index]->type;
   return OptionStatus::kOk;
 }
 
@@ -759,8 +793,10 @@ void resetLocalOptions(std::vector<OptionRecord*>& option_records) {
 HighsStatus writeOptionsToFile(FILE* file,
                                const std::vector<OptionRecord*>& option_records,
                                const bool report_only_deviations,
-                               const bool html) {
-  if (html) {
+                               const HighsFileType file_type) {
+  const bool html_file = file_type == HighsFileType::kHtml;
+  const bool md_file = file_type == HighsFileType::kMd;
+  if (html_file) {
     fprintf(file, "<!DOCTYPE HTML>\n<html>\n\n<head>\n");
     fprintf(file, "  <title>HiGHS Options</title>\n");
     fprintf(file, "	<meta charset=\"utf-8\" />\n");
@@ -774,8 +810,8 @@ HighsStatus writeOptionsToFile(FILE* file,
     fprintf(file, "<h3>HiGHS Options</h3>\n\n");
     fprintf(file, "<ul>\n");
   }
-  reportOptions(file, option_records, report_only_deviations, html);
-  if (html) {
+  reportOptions(file, option_records, report_only_deviations, file_type);
+  if (html_file) {
     fprintf(file, "</ul>\n");
     fprintf(file, "</body>\n\n</html>\n");
   }
@@ -783,33 +819,41 @@ HighsStatus writeOptionsToFile(FILE* file,
 }
 
 void reportOptions(FILE* file, const std::vector<OptionRecord*>& option_records,
-                   const bool report_only_deviations, const bool html) {
+                   const bool report_only_deviations,
+                   const HighsFileType file_type) {
+  const bool html_file = file_type == HighsFileType::kHtml;
+  const bool md_file = file_type == HighsFileType::kMd;
   HighsInt num_options = option_records.size();
   for (HighsInt index = 0; index < num_options; index++) {
     HighsOptionType type = option_records[index]->type;
-    //    fprintf(file, "\n# Option %1" HIGHSINT_FORMAT "\n", index);
-    // Skip the advanced options when creating HTML
-    if (html && option_records[index]->advanced) continue;
+    // Only report non-advanced options
+    if (option_records[index]->advanced) {  // && (html_file || md_file)) {
+      // Possibly the advanced options when creating HTML or Md file
+      if (!kAdvancedInDocumentation) continue;
+    }
     if (type == HighsOptionType::kBool) {
       reportOption(file, ((OptionRecordBool*)option_records[index])[0],
-                   report_only_deviations, html);
+                   report_only_deviations, file_type);
     } else if (type == HighsOptionType::kInt) {
       reportOption(file, ((OptionRecordInt*)option_records[index])[0],
-                   report_only_deviations, html);
+                   report_only_deviations, file_type);
     } else if (type == HighsOptionType::kDouble) {
       reportOption(file, ((OptionRecordDouble*)option_records[index])[0],
-                   report_only_deviations, html);
+                   report_only_deviations, file_type);
     } else {
       reportOption(file, ((OptionRecordString*)option_records[index])[0],
-                   report_only_deviations, html);
+                   report_only_deviations, file_type);
     }
   }
 }
 
 void reportOption(FILE* file, const OptionRecordBool& option,
-                  const bool report_only_deviations, const bool html) {
+                  const bool report_only_deviations,
+                  const HighsFileType file_type) {
+  const bool html_file = file_type == HighsFileType::kHtml;
+  const bool md_file = file_type == HighsFileType::kMd;
   if (!report_only_deviations || option.default_value != *option.value) {
-    if (html) {
+    if (html_file) {
       fprintf(file,
               "<li><tt><font size=\"+2\"><strong>%s</strong></font></tt><br>\n",
               option.name.c_str());
@@ -819,6 +863,11 @@ void reportOption(FILE* file, const OptionRecordBool& option,
               highsBoolToString(option.advanced).c_str(),
               highsBoolToString(option.default_value).c_str());
       fprintf(file, "</li>\n");
+    } else if (md_file) {
+      fprintf(file, "## %s\n- %s\n- Type: boolean\n- Default: \"%s\"\n\n",
+              highsInsertMdEscapes(option.name).c_str(),
+              highsInsertMdEscapes(option.description).c_str(),
+              highsBoolToString(option.default_value).c_str());
     } else {
       fprintf(file, "\n# %s\n", option.description.c_str());
       fprintf(
@@ -833,23 +882,33 @@ void reportOption(FILE* file, const OptionRecordBool& option,
 }
 
 void reportOption(FILE* file, const OptionRecordInt& option,
-                  const bool report_only_deviations, const bool html) {
+                  const bool report_only_deviations,
+                  const HighsFileType file_type) {
+  const bool html_file = file_type == HighsFileType::kHtml;
+  const bool md_file = file_type == HighsFileType::kMd;
   if (!report_only_deviations || option.default_value != *option.value) {
-    if (html) {
+    if (html_file) {
       fprintf(file,
               "<li><tt><font size=\"+2\"><strong>%s</strong></font></tt><br>\n",
               option.name.c_str());
       fprintf(file, "%s<br>\n", option.description.c_str());
       fprintf(file,
-              "type: HighsInt, advanced: %s, range: {%" HIGHSINT_FORMAT
+              "type: integer, advanced: %s, range: {%" HIGHSINT_FORMAT
               ", %" HIGHSINT_FORMAT "}, default: %" HIGHSINT_FORMAT "\n",
               highsBoolToString(option.advanced).c_str(), option.lower_bound,
               option.upper_bound, option.default_value);
       fprintf(file, "</li>\n");
+    } else if (md_file) {
+      fprintf(file,
+              "## %s\n- %s\n- Type: integer\n- Range: {%" HIGHSINT_FORMAT
+              ", %" HIGHSINT_FORMAT "}\n- Default: %" HIGHSINT_FORMAT "\n\n",
+              highsInsertMdEscapes(option.name).c_str(),
+              highsInsertMdEscapes(option.description).c_str(),
+              option.lower_bound, option.upper_bound, option.default_value);
     } else {
       fprintf(file, "\n# %s\n", option.description.c_str());
       fprintf(file,
-              "# [type: HighsInt, advanced: %s, range: {%" HIGHSINT_FORMAT
+              "# [type: integer, advanced: %s, range: {%" HIGHSINT_FORMAT
               ", %" HIGHSINT_FORMAT "}, default: %" HIGHSINT_FORMAT "]\n",
               highsBoolToString(option.advanced).c_str(), option.lower_bound,
               option.upper_bound, option.default_value);
@@ -860,9 +919,12 @@ void reportOption(FILE* file, const OptionRecordInt& option,
 }
 
 void reportOption(FILE* file, const OptionRecordDouble& option,
-                  const bool report_only_deviations, const bool html) {
+                  const bool report_only_deviations,
+                  const HighsFileType file_type) {
+  const bool html_file = file_type == HighsFileType::kHtml;
+  const bool md_file = file_type == HighsFileType::kMd;
   if (!report_only_deviations || option.default_value != *option.value) {
-    if (html) {
+    if (html_file) {
       fprintf(file,
               "<li><tt><font size=\"+2\"><strong>%s</strong></font></tt><br>\n",
               option.name.c_str());
@@ -872,6 +934,13 @@ void reportOption(FILE* file, const OptionRecordDouble& option,
               highsBoolToString(option.advanced).c_str(), option.lower_bound,
               option.upper_bound, option.default_value);
       fprintf(file, "</li>\n");
+    } else if (md_file) {
+      fprintf(
+          file,
+          "## %s\n- %s\n- Type: double\n- Range: [%g, %g]\n- Default: %g\n\n",
+          highsInsertMdEscapes(option.name).c_str(),
+          highsInsertMdEscapes(option.description).c_str(), option.lower_bound,
+          option.upper_bound, option.default_value);
     } else {
       fprintf(file, "\n# %s\n", option.description.c_str());
       fprintf(file,
@@ -884,11 +953,17 @@ void reportOption(FILE* file, const OptionRecordDouble& option,
 }
 
 void reportOption(FILE* file, const OptionRecordString& option,
-                  const bool report_only_deviations, const bool html) {
+                  const bool report_only_deviations,
+                  const HighsFileType file_type) {
   // Don't report for the options file if writing to an options file
+  const bool html_file = file_type == HighsFileType::kHtml;
+  const bool md_file = file_type == HighsFileType::kMd;
+  // Don't report options that can only be passed via the command line
   if (option.name == kOptionsFileString) return;
+  // ToDo: are there others?
+
   if (!report_only_deviations || option.default_value != *option.value) {
-    if (html) {
+    if (html_file) {
       fprintf(file,
               "<li><tt><font size=\"+2\"><strong>%s</strong></font></tt><br>\n",
               option.name.c_str());
@@ -897,6 +972,11 @@ void reportOption(FILE* file, const OptionRecordString& option,
               highsBoolToString(option.advanced).c_str(),
               option.default_value.c_str());
       fprintf(file, "</li>\n");
+    } else if (md_file) {
+      fprintf(file, "## %s\n- %s\n- Type: string\n- Default: \"%s\"\n\n",
+              highsInsertMdEscapes(option.name).c_str(),
+              highsInsertMdEscapes(option.description).c_str(),
+              option.default_value.c_str());
     } else {
       fprintf(file, "\n# %s\n", option.description.c_str());
       fprintf(file, "# [type: string, advanced: %s, default: \"%s\"]\n",

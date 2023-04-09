@@ -2,12 +2,10 @@
 /*                                                                       */
 /*    This file is part of the HiGHS linear optimization suite           */
 /*                                                                       */
-/*    Written and engineered 2008-2022 at the University of Edinburgh    */
+/*    Written and engineered 2008-2023 by Julian Hall, Ivet Galabova,    */
+/*    Leona Gottwald and Michael Feldmeier                               */
 /*                                                                       */
 /*    Available as open-source under the MIT License                     */
-/*                                                                       */
-/*    Authors: Julian Hall, Ivet Galabova, Leona Gottwald and Michael    */
-/*    Feldmeier                                                          */
 /*                                                                       */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -1182,6 +1180,7 @@ HMpsFF::Parsekey HMpsFF::parseBounds(const HighsLogOptions& log_options,
     bool is_integral = false;
     bool is_semi = false;
     bool is_defaultbound = false;
+    const std::string bound_type = word;
     if (word == "UP")  // lower bound
       is_ub = true;
     else if (word == "LO")  // upper bound
@@ -1314,7 +1313,8 @@ HMpsFF::Parsekey HMpsFF::parseBounds(const HighsLogOptions& log_options,
 
     if (word == "") {
       highsLogUser(log_options, HighsLogType::kError,
-                   "No bound given for row \"%s\"\n", marker.c_str());
+                   "No bound given for %s row \"%s\"\n", bound_type.c_str(),
+                   marker.c_str());
       return HMpsFF::Parsekey::kFail;
     }
     double value = atof(word.c_str());
