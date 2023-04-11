@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macOS-10.15] #  windows-2019 ubuntu-20.04,
+        os: [macos-latest] #  windows-2019 ubuntu-20.04,
 
     steps:
       - uses: actions/checkout@v3
@@ -51,14 +51,14 @@ jobs:
       - name: Build wheels
         run: |
           cd  $GITHUB_WORKSPACE
-          export REPAIR_LIBRARY_PATH=${{runner.workspace}}/installs/highs/lib
-          export LD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH
-          export DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH
-          ls $REPAIR_LIBRARY_PATH
           python -m cibuildwheel --output-dir wheelhouse
 
-        # to supply options, put them in 'env', like:
+        # export REPAIR_LIBRARY_PATH=${{runner.workspace}}/installs/highs/lib
+        # export LD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH
+        # export DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH
+        # # ls $REPAIR_LIBRARY_PATH
 
+        # to supply options, put them in 'env', like:
         env:
           CIBW_ENVIRONMENT: REPAIR_LIBRARY_PATH=${{runner.workspace}}/installs/highs/lib LD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH
           CIBW_REPAIR_WHEEL_COMMAND_MACOS: >
