@@ -1224,6 +1224,10 @@ class Highs {
   void deprecationMessage(const std::string& method_name,
                           const std::string& alt_method_name) const;
 
+  const std::vector<HighsMiscData>& getHighsMiscData() const {
+    return this->current_time_;
+  }
+
   // End of deprecated methods
  private:
   HighsSolution solution_;
@@ -1239,6 +1243,8 @@ class Highs {
   HighsRanging ranging_;
 
   std::vector<HighsObjectiveSolution> saved_objective_and_solution_;
+
+  std::vector<HighsMiscData> current_time_;
 
   HighsPresolveStatus model_presolve_status_ =
       HighsPresolveStatus::kNotPresolved;

@@ -42,6 +42,11 @@ struct HighsObjectiveSolution {
   void clear();
 };
 
+struct HighsMiscData {
+  double current_time;
+  double current_gap;
+};
+
 struct RefactorInfo {
   bool use = false;
   std::vector<HighsInt> pivot_row;
