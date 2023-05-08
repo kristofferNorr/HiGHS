@@ -1690,19 +1690,21 @@ void HighsMipSolverData::saveReportMipSolution(const double new_upper_limit) {
     double ub = kHighsInf;
     double lb = lower_bound + offset;
     if (std::abs(lb) <= epsilon) lb = 0;
-    double gap = kHighsInf;
+    double rel_gap = kHighsInf;
     if (upper_bound != kHighsInf) {
       ub = upper_bound + offset;
 
       if (std::fabs(ub) <= epsilon) ub = 0;
       lb = std::min(ub, lb);
       if (ub == 0.0)
-        gap = lb == 0.0 ? 0.0 : kHighsInf;
+        rel_gap = lb == 0.0 ? 0.0 : kHighsInf;
       else
-        gap = 100. * (ub - lb) / fabs(ub);
+        rel_gap = 100. * (ub - lb) / fabs(ub);
     }
 
-    time_record.current_gap = gap;
+    time_record.current_rel_gap = rel_gap;
+    time_record.current_ub = (int)mipsolver.orig_model_->sense_ * ub;
+    time_record.current_lb = (int)mipsolver.orig_model_->sense_ * lb;
     mipsolver.current_time_.push_back(time_record);
   }
   FILE* file = mipsolver.improving_solution_file_;

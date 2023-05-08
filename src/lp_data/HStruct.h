@@ -44,7 +44,9 @@ struct HighsObjectiveSolution {
 
 struct HighsMiscData {
   double current_time;
-  double current_gap;
+  double current_rel_gap;
+  double current_ub;
+  double current_lb;
 };
 
 struct RefactorInfo {

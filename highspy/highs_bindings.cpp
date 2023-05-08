@@ -862,7 +862,9 @@ PYBIND11_MODULE(highs_bindings, m)
   py::class_<HighsMiscData>(m, "HighsMiscData")
     .def(py::init<>())
     .def_readwrite("current_time", &HighsMiscData::current_time)
-    .def_readwrite("current_gap", &HighsMiscData::current_gap);
+    .def_readwrite("current_rel_gap", &HighsMiscData::current_rel_gap)
+    .def_readwrite("current_ub", &HighsMiscData::current_ub)
+    .def_readwrite("current_lb", &HighsMiscData::current_lb);
   // constants
   m.attr("kHighsInf") = kHighsInf;
   m.attr("kHighsIInf") = kHighsIInf;
