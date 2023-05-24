@@ -1755,7 +1755,6 @@ void HighsMipSolverData::saveReportMipSolution(const double new_upper_limit) {
     HighsObjectiveSolution record;
     record.objective = mipsolver.solution_objective_;
     record.col_value = mipsolver.solution_;
-    mipsolver.saved_objective_and_solution_.push_back(record);
     record.current_time = mipsolver.timer_.read(mipsolver.timer_.solve_clock);
 
     double offset = mipsolver.model_->offset_;
