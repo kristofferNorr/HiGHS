@@ -51,7 +51,8 @@ HighsStatus assessBounds(const HighsOptions& options, const char* type,
                          const HighsInt ml_ix_os,
                          const HighsIndexCollection& index_collection,
                          vector<double>& lower, vector<double>& upper,
-                         const double infinite_bound);
+                         const double infinite_bound,
+                         const HighsVarType* integrality = nullptr);
 
 HighsStatus cleanBounds(const HighsOptions& options, HighsLp& lp);
 
@@ -224,7 +225,8 @@ HighsStatus calculateRowValues(const HighsLp& lp,
                                const std::vector<double>& col_value,
                                std::vector<double>& row_value);
 HighsStatus calculateRowValues(const HighsLp& lp, HighsSolution& solution);
-HighsStatus calculateRowValuesQuad(const HighsLp& lp, HighsSolution& solution);
+HighsStatus calculateRowValuesQuad(const HighsLp& lp, HighsSolution& solution,
+                                   const HighsInt report_row = -1);
 HighsStatus calculateColDuals(const HighsLp& lp, HighsSolution& solution);
 
 bool isBoundInfeasible(const HighsLogOptions& log_options, const HighsLp& lp);

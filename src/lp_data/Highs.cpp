@@ -554,6 +554,7 @@ HighsStatus Highs::passColName(const HighsInt col, const std::string& name) {
   }
   this->model_.lp_.col_names_.resize(num_col);
   this->model_.lp_.col_names_[col] = name;
+  this->model_.lp_.col_hash_.clear();
   return HighsStatus::kOk;
 }
 
@@ -573,6 +574,7 @@ HighsStatus Highs::passRowName(const HighsInt row, const std::string& name) {
   }
   this->model_.lp_.row_names_.resize(num_row);
   this->model_.lp_.row_names_[row] = name;
+  this->model_.lp_.row_hash_.clear();
   return HighsStatus::kOk;
 }
 
@@ -647,12 +649,12 @@ HighsStatus Highs::writeModel(const std::string& filename) {
   // Ensure that the LP is column-wise
   model_.lp_.ensureColwise();
   // Check for repeated column or row names that would corrupt the file
-  if (repeatedNames(model_.lp_.col_names_)) {
+  if (model_.lp_.col_hash_.hasDuplicate(model_.lp_.col_names_)) {
     highsLogUser(options_.log_options, HighsLogType::kError,
                  "Model has repeated column names\n");
     return returnFromHighs(HighsStatus::kError);
   }
-  if (repeatedNames(model_.lp_.row_names_)) {
+  if (model_.lp_.row_hash_.hasDuplicate(model_.lp_.row_names_)) {
     highsLogUser(options_.log_options, HighsLogType::kError,
                  "Model has repeated row names\n");
     return returnFromHighs(HighsStatus::kError);
@@ -773,9 +775,9 @@ HighsStatus Highs::presolve() {
     presolved_model_.lp_.setMatrixDimensions();
   }
 
-  highsLogUser(
-      options_.log_options, HighsLogType::kInfo, "Presolve status: %s\n",
-      presolve_.presolveStatusToString(model_presolve_status_).c_str());
+  highsLogUser(options_.log_options, HighsLogType::kInfo,
+               "Presolve status: %s\n",
+               presolveStatusToString(model_presolve_status_).c_str());
   return returnFromHighs(return_status);
 }
 
@@ -911,15 +913,19 @@ HighsStatus Highs::run() {
     highsLogDev(options_.log_options, HighsLogType::kVerbose,
                 "Solving model: %s\n", model_.lp_.model_name_.c_str());
 
-  // Check validity of any integrality, keeping a record of any upper
-  // bound modifications for semi-variables
-  call_status = assessIntegrality(model_.lp_, options_);
-  if (call_status == HighsStatus::kError) {
-    setHighsModelStatusAndClearSolutionAndBasis(HighsModelStatus::kSolveError);
-    return returnFromRun(HighsStatus::kError);
+  if (!options_.solve_relaxation) {
+    // Not solving the relaxation, so check validity of any
+    // integrality, keeping a record of any bound and type
+    // modifications for semi-variables
+    call_status = assessIntegrality(model_.lp_, options_);
+    if (call_status == HighsStatus::kError) {
+      setHighsModelStatusAndClearSolutionAndBasis(
+          HighsModelStatus::kSolveError);
+      return returnFromRun(HighsStatus::kError);
+    }
   }
-
-  if (!options_.solver.compare(kHighsChooseString)) {
+  const bool use_simplex_or_ipm = options_.solver.compare(kHighsChooseString);
+  if (!use_simplex_or_ipm) {
     // Leaving HiGHS to choose method according to model class
     if (model_.isQp()) {
       if (model_.isMip()) {
@@ -954,10 +960,15 @@ HighsStatus Highs::run() {
   // If model is MIP, must be solving the relaxation or not leaving
   // HiGHS to choose method according to model class
   if (model_.isMip()) {
-    assert(options_.solve_relaxation ||
-           options_.solver.compare(kHighsChooseString));
+    assert(options_.solve_relaxation || use_simplex_or_ipm);
     // Relax any semi-variables
     relaxSemiVariables(model_.lp_);
+    highsLogUser(
+        options_.log_options, HighsLogType::kInfo,
+        "Solving LP relaxation since%s%s%s\n",
+        options_.solve_relaxation ? " solve_relaxation is true" : "",
+        options_.solve_relaxation && use_simplex_or_ipm ? " and" : "",
+        use_simplex_or_ipm ? (" solver = " + options_.solver).c_str() : "");
   }
   // Solve the model as an LP
   HighsLp& incumbent_lp = model_.lp_;
@@ -2428,6 +2439,26 @@ HighsStatus Highs::getColName(const HighsInt col, std::string& name) const {
   return HighsStatus::kOk;
 }
 
+HighsStatus Highs::getColByName(const std::string& name, HighsInt& col) {
+  HighsLp& lp = model_.lp_;
+  if (!lp.col_names_.size()) return HighsStatus::kError;
+  if (!lp.col_hash_.name2index.size()) lp.col_hash_.form(lp.col_names_);
+  auto search = lp.col_hash_.name2index.find(name);
+  if (search == lp.col_hash_.name2index.end()) {
+    highsLogUser(options_.log_options, HighsLogType::kError,
+                 "Highs::getColByName: name %s is not found\n", name.c_str());
+    return HighsStatus::kError;
+  }
+  if (search->second == kHashIsDuplicate) {
+    highsLogUser(options_.log_options, HighsLogType::kError,
+                 "Highs::getColByName: name %s is duplicated\n", name.c_str());
+    return HighsStatus::kError;
+  }
+  col = search->second;
+  assert(lp.col_names_[col] == name);
+  return HighsStatus::kOk;
+}
+
 HighsStatus Highs::getColIntegrality(const HighsInt col,
                                      HighsVarType& integrality) const {
   const HighsInt num_col = this->model_.lp_.num_col_;
@@ -2507,6 +2538,26 @@ HighsStatus Highs::getRowName(const HighsInt row, std::string& name) const {
     return HighsStatus::kError;
   }
   name = this->model_.lp_.row_names_[row];
+  return HighsStatus::kOk;
+}
+
+HighsStatus Highs::getRowByName(const std::string& name, HighsInt& row) {
+  HighsLp& lp = model_.lp_;
+  if (!lp.row_names_.size()) return HighsStatus::kError;
+  if (!lp.row_hash_.name2index.size()) lp.row_hash_.form(lp.row_names_);
+  auto search = lp.row_hash_.name2index.find(name);
+  if (search == lp.row_hash_.name2index.end()) {
+    highsLogUser(options_.log_options, HighsLogType::kError,
+                 "Highs::getRowByName: name %s is not found\n", name.c_str());
+    return HighsStatus::kError;
+  }
+  if (search->second == kHashIsDuplicate) {
+    highsLogUser(options_.log_options, HighsLogType::kError,
+                 "Highs::getRowByName: name %s is duplicated\n", name.c_str());
+    return HighsStatus::kError;
+  }
+  row = search->second;
+  assert(lp.row_names_[row] == name);
   return HighsStatus::kOk;
 }
 
@@ -2636,10 +2687,9 @@ HighsStatus Highs::postsolve(const HighsSolution& solution,
       model_presolve_status_ == HighsPresolveStatus::kReducedToEmpty ||
       model_presolve_status_ == HighsPresolveStatus::kTimeout;
   if (!can_run_postsolve) {
-    highsLogUser(
-        options_.log_options, HighsLogType::kWarning,
-        "Cannot run postsolve with presolve status: %s\n",
-        presolve_.presolveStatusToString(model_presolve_status_).c_str());
+    highsLogUser(options_.log_options, HighsLogType::kWarning,
+                 "Cannot run postsolve with presolve status: %s\n",
+                 presolveStatusToString(model_presolve_status_).c_str());
     return HighsStatus::kWarning;
   }
   HighsStatus return_status = callRunPostsolve(solution, basis);
@@ -2697,6 +2747,33 @@ HighsStatus Highs::assessPrimalSolution(bool& valid, bool& integral,
                                         bool& feasible) const {
   return assessLpPrimalSolution(options_, model_.lp_, solution_, valid,
                                 integral, feasible);
+}
+
+std::string Highs::presolveStatusToString(
+    const HighsPresolveStatus presolve_status) const {
+  switch (presolve_status) {
+    case HighsPresolveStatus::kNotPresolved:
+      return "Not presolved";
+    case HighsPresolveStatus::kNotReduced:
+      return "Not reduced";
+    case HighsPresolveStatus::kInfeasible:
+      return "Infeasible";
+    case HighsPresolveStatus::kUnboundedOrInfeasible:
+      return "Unbounded or infeasible";
+    case HighsPresolveStatus::kReduced:
+      return "Reduced";
+    case HighsPresolveStatus::kReducedToEmpty:
+      return "Reduced to empty";
+    case HighsPresolveStatus::kTimeout:
+      return "Timeout";
+    case HighsPresolveStatus::kNullError:
+      return "Null error";
+    case HighsPresolveStatus::kOptionsError:
+      return "Options error";
+    default:
+      assert(1 == 0);
+      return "Unrecognised presolve status";
+  }
 }
 
 std::string Highs::modelStatusToString(
@@ -2776,28 +2853,46 @@ HighsPresolveStatus Highs::runPresolve(const bool force_presolve) {
   }
 
   // Presolve.
-  presolve_.init(original_lp, timer_);
-  presolve_.options_ = &options_;
-  if (options_.time_limit > 0 && options_.time_limit < kHighsInf) {
-    double current = timer_.readRunHighsClock();
-    double time_init = current - start_presolve;
-    double left = presolve_.options_->time_limit - time_init;
-    if (left <= 0) {
-      highsLogDev(options_.log_options, HighsLogType::kError,
-                  "Time limit reached while copying matrix into presolve.\n");
-      return HighsPresolveStatus::kTimeout;
+  HighsPresolveStatus presolve_return_status =
+      HighsPresolveStatus::kNotPresolved;
+  if (model_.isMip()) {
+    // Use presolve for MIP
+    //
+    // Presolved model is extracted now since it's part of solver,
+    // which is lost on return
+    HighsMipSolver solver(options_, original_lp, solution_);
+    solver.runPresolve();
+    presolve_return_status = solver.getPresolveStatus();
+    // Assign values to data members of presolve_
+    presolve_.data_.reduced_lp_ = solver.getPresolvedModel();
+    //    presolved_model_.lp_ = solver.getPresolvedModel();
+    presolve_.presolve_status_ = presolve_return_status;
+    //    presolve_.data_.presolve_log_ =
+  } else {
+    // Use presolve for LP
+    presolve_.init(original_lp, timer_);
+    presolve_.options_ = &options_;
+    if (options_.time_limit > 0 && options_.time_limit < kHighsInf) {
+      double current = timer_.readRunHighsClock();
+      double time_init = current - start_presolve;
+      double left = presolve_.options_->time_limit - time_init;
+      if (left <= 0) {
+        highsLogDev(options_.log_options, HighsLogType::kError,
+                    "Time limit reached while copying matrix into presolve.\n");
+        return HighsPresolveStatus::kTimeout;
+      }
+      highsLogDev(options_.log_options, HighsLogType::kVerbose,
+                  "Time limit set: copying matrix took %.2g, presolve "
+                  "time left: %.2g\n",
+                  time_init, left);
     }
-    highsLogDev(options_.log_options, HighsLogType::kVerbose,
-                "Time limit set: copying matrix took %.2g, presolve "
-                "time left: %.2g\n",
-                time_init, left);
-  }
 
-  HighsPresolveStatus presolve_return_status = presolve_.run();
+    presolve_return_status = presolve_.run();
+  }
 
   highsLogDev(options_.log_options, HighsLogType::kVerbose,
               "presolve_.run() returns status: %s\n",
-              presolve_.presolveStatusToString(presolve_return_status).c_str());
+              presolveStatusToString(presolve_return_status).c_str());
 
   // Update reduction counts.
   assert(presolve_return_status == presolve_.presolve_status_);
@@ -2846,7 +2941,7 @@ HighsPostsolveStatus Highs::runPostsolve() {
   calculateRowValuesQuad(model_.lp_, presolve_.data_.recovered_solution_);
 
   if (have_dual_solution && model_.lp_.sense_ == ObjSense::kMaximize)
-    presolve_.negateReducedLpColDuals(true);
+    presolve_.negateReducedLpColDuals();
 
   // Ensure that the postsolve status is used to set
   // presolve_.postsolve_status_, as well as being returned
@@ -3034,18 +3129,19 @@ HighsStatus Highs::callSolveQp() {
     int rep = rt.statistics.iteration.size() - 1;
 
     highsLogUser(options_.log_options, HighsLogType::kInfo,
-                 "%" HIGHSINT_FORMAT ", %lf, %" HIGHSINT_FORMAT
-                 ", %lf, %lf, %" HIGHSINT_FORMAT ", %lf, %lf\n",
-                 rt.statistics.iteration[rep], rt.statistics.objval[rep],
-                 rt.statistics.nullspacedimension[rep], rt.statistics.time[rep],
-                 rt.statistics.sum_primal_infeasibilities[rep],
-                 rt.statistics.num_primal_infeasibilities[rep],
-                 rt.statistics.density_nullspace[rep],
-                 rt.statistics.density_factor[rep]);
+                 "%" HIGHSINT_FORMAT ", %lf, %lf, %" HIGHSINT_FORMAT "\n",
+                 rt.statistics.iteration[rep], rt.statistics.time[rep],
+                 rt.statistics.objval[rep],
+                 rt.statistics.nullspacedimension[rep]);
   });
 
   runtime.settings.timelimit = options_.time_limit;
   runtime.settings.iterationlimit = std::numeric_limits<int>::max();
+
+  // print header for QP solver output
+  highsLogUser(options_.log_options, HighsLogType::kInfo,
+               "Iteration, Runtime, ObjVal, NullspaceDim\n");
+
   Quass qpsolver(runtime);
   qpsolver.solve();
 
@@ -3551,8 +3647,8 @@ HighsStatus Highs::returnFromRun(const HighsStatus run_return_status) {
   this->model_.lp_.unapplyMods();
 
   // Unless solved as a MIP, report on the solution
-  const bool solved_as_mip =
-      !options_.solver.compare(kHighsChooseString) && model_.isMip();
+  const bool solved_as_mip = !options_.solver.compare(kHighsChooseString) &&
+                             model_.isMip() && !options_.solve_relaxation;
   if (!solved_as_mip) reportSolvedLpQpStats();
 
   return returnFromHighs(return_status);

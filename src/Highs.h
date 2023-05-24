@@ -371,7 +371,7 @@ class Highs {
    * producing HTML, otherwise using the standard format used to read
    * options from a file.
    */
-  HighsStatus writeInfo(const std::string& filename) const;
+  HighsStatus writeInfo(const std::string& filename = "") const;
 
   /**
    * @brief Get the value of infinity used by HiGHS
@@ -644,6 +644,11 @@ class Highs {
   HighsStatus getColName(const HighsInt col, std::string& name) const;
 
   /**
+   * @brief Get column index corresponding to name
+   */
+  HighsStatus getColByName(const std::string& name, HighsInt& col);
+
+  /**
    * @brief Get a column integrality from the incumbent model
    */
   HighsStatus getColIntegrality(const HighsInt col,
@@ -709,6 +714,11 @@ class Highs {
   HighsStatus getRowName(const HighsInt row, std::string& name) const;
 
   /**
+   * @brief Get row index corresponding to name
+   */
+  HighsStatus getRowByName(const std::string& name, HighsInt& row);
+
+  /**
    * @brief Get a matrix coefficient
    */
   HighsStatus getCoeff(const HighsInt row, const HighsInt col, double& value);
@@ -716,12 +726,12 @@ class Highs {
   /**
    * @brief Write out the incumbent model to a file
    */
-  HighsStatus writeModel(const std::string& filename);
+  HighsStatus writeModel(const std::string& filename = "");
 
   /**
    * @brief Write out the internal HighsBasis instance to a file
    */
-  HighsStatus writeBasis(const std::string& filename);
+  HighsStatus writeBasis(const std::string& filename = "");
 
   /**
    * Methods for incumbent model modification
@@ -1030,6 +1040,8 @@ class Highs {
   /**
    * @brief Interpret common qualifiers to string values
    */
+  std::string presolveStatusToString(
+      const HighsPresolveStatus presolve_status) const;
   std::string modelStatusToString(const HighsModelStatus model_status) const;
   std::string solutionStatusToString(const HighsInt solution_status) const;
   std::string basisStatusToString(const HighsBasisStatus basis_status) const;
