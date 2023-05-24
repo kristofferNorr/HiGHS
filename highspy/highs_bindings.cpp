@@ -799,7 +799,6 @@ PYBIND11_MODULE(highs_bindings, m)
     .def("getModel", &Highs::getModel)
     .def("getSolution", &Highs::getSolution)
     .def("getSavedMipSolutions", &Highs::getSavedMipSolutions)
-    .def("getHighsMiscData", &Highs::getHighsMiscData)
     .def("getBasis", &Highs::getBasis)
 // &highs_getModelStatus not needed once getModelStatus(const bool
 // scaled_model) disappears from, Highs.h
@@ -868,7 +867,11 @@ PYBIND11_MODULE(highs_bindings, m)
   py::class_<HighsObjectiveSolution>(m, "HighsObjectiveSolution")
     .def(py::init<>())
     .def_readwrite("objective", &HighsObjectiveSolution::objective)
-    .def_readwrite("col_value", &HighsObjectiveSolution::col_value);
+    .def_readwrite("col_value", &HighsObjectiveSolution::col_value)
+    .def_readwrite("current_time", &HighsObjectiveSolution::current_time)
+    .def_readwrite("current_rel_gap", &HighsObjectiveSolution::current_rel_gap)
+    .def_readwrite("current_ub", &HighsObjectiveSolution::current_ub)
+    .def_readwrite("current_lb", &HighsObjectiveSolution::current_lb);
   py::class_<HighsBasis>(m, "HighsBasis")
     .def(py::init<>())
     .def_readwrite("valid", &HighsBasis::valid)
@@ -894,12 +897,6 @@ PYBIND11_MODULE(highs_bindings, m)
     .def_readwrite("col_bound_dn", &HighsRanging::col_bound_dn)
     .def_readwrite("row_bound_up", &HighsRanging::row_bound_up)
     .def_readwrite("row_bound_dn", &HighsRanging::row_bound_dn);
-  py::class_<HighsMiscData>(m, "HighsMiscData")
-    .def(py::init<>())
-    .def_readwrite("current_time", &HighsMiscData::current_time)
-    .def_readwrite("current_rel_gap", &HighsMiscData::current_rel_gap)
-    .def_readwrite("current_ub", &HighsMiscData::current_ub)
-    .def_readwrite("current_lb", &HighsMiscData::current_lb);
   // constants
   m.attr("kHighsInf") = kHighsInf;
   m.attr("kHighsIInf") = kHighsIInf;

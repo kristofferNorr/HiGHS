@@ -1752,12 +1752,11 @@ void HighsMipSolverData::saveReportMipSolution(const double new_upper_limit) {
   if (non_improving) return;
   mipsolver.timer_.stop(mipsolver.timer_.solve_clock);
   if (mipsolver.options_mip_->mip_improving_solution_save) {
-    HighsMiscData time_record;
     HighsObjectiveSolution record;
     record.objective = mipsolver.solution_objective_;
     record.col_value = mipsolver.solution_;
     mipsolver.saved_objective_and_solution_.push_back(record);
-    time_record.current_time = mipsolver.timer_.read(mipsolver.timer_.solve_clock);
+    record.current_time = mipsolver.timer_.read(mipsolver.timer_.solve_clock);
 
     double offset = mipsolver.model_->offset_;
     double ub = kHighsInf;
@@ -1775,10 +1774,10 @@ void HighsMipSolverData::saveReportMipSolution(const double new_upper_limit) {
         rel_gap = 100. * (ub - lb) / fabs(ub);
     }
 
-    time_record.current_rel_gap = rel_gap;
-    time_record.current_ub = (int)mipsolver.orig_model_->sense_ * ub;
-    time_record.current_lb = (int)mipsolver.orig_model_->sense_ * lb;
-    mipsolver.current_time_.push_back(time_record);
+    record.current_rel_gap = rel_gap;
+    record.current_ub = (int)mipsolver.orig_model_->sense_ * ub;
+    record.current_lb = (int)mipsolver.orig_model_->sense_ * lb;
+    mipsolver.saved_objective_and_solution_.push_back(record);
   }
   FILE* file = mipsolver.improving_solution_file_;
   if (file) {

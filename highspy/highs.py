@@ -24,7 +24,6 @@ from .highs_bindings import (
     # structs
     HighsSolution,
     HighsObjectiveSolution,
-    HighsMiscData,
     HighsBasis,
     HighsRangingRecord,
     HighsRanging,

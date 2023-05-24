@@ -40,8 +40,6 @@ class HighsMipSolver {
   FILE* improving_solution_file_;
   std::vector<HighsObjectiveSolution> saved_objective_and_solution_;
 
-  std::vector<HighsMiscData> current_time_;
-
   bool submip;
   const HighsBasis* rootbasis;
   const HighsPseudocostInitialization* pscostinit;
