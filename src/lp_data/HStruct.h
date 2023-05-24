@@ -40,11 +40,11 @@ struct HighsSolution {
 struct HighsObjectiveSolution {
   double objective;
   std::vector<double> col_value;
+  void clear();
   double current_time;
   double current_rel_gap;
   double current_ub;
   double current_lb;
-  void clear();
 };
 
 struct RefactorInfo {
