@@ -1780,7 +1780,13 @@ void HighsMipSolverData::saveReportMipSolution(const double new_upper_limit) {
   }
   FILE* file = mipsolver.improving_solution_file_;
   if (file) {
+    writeTime(file, mipsolver.timer_.read(mipsolver.timer_.solve_clock));
     writeLpObjective(file, *(mipsolver.orig_model_), mipsolver.solution_);
+    writeGap(
+             file,
+             mipsolver.saved_objective_and_solution_.back().current_ub,
+             mipsolver.saved_objective_and_solution_.back().current_lb,
+             mipsolver.saved_objective_and_solution_.back().current_rel_gap);
     writePrimalSolution(
         file, *(mipsolver.orig_model_), mipsolver.solution_,
         mipsolver.options_mip_->mip_improving_solution_report_sparse);

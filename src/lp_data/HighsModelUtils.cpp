@@ -238,6 +238,27 @@ void writePrimalSolution(FILE* file, const HighsLp& lp,
     fprintf(file, "\n");
   }
 }
+
+void writeTime(FILE* file, const double time) {
+  std::array<char, 32> timeStr = highsDoubleToString(
+      time, kHighsSolutionValueToStringTolerance);
+  fprintf(file, "Time %s\n", timeStr.data());
+}
+
+void writeGap(FILE* file, const double ub,
+               const double lb, const double gap) {
+  std::array<char, 32> ubStr = highsDoubleToString(
+      ub, kHighsSolutionValueToStringTolerance);
+  std::array<char, 32> lbStr = highsDoubleToString(
+      lb, kHighsSolutionValueToStringTolerance);
+  std::array<char, 32> gapStr = highsDoubleToString(
+      gap, kHighsSolutionValueToStringTolerance);
+  fprintf(file, "BestBound %s\n", lbStr.data());
+  fprintf(file, "BestSol %s\n", ubStr.data());
+  fprintf(file, "Gap %s\n", gapStr.data());
+
+}
+
 void writeModelSolution(FILE* file, const HighsModel& model,
                         const HighsSolution& solution, const HighsInfo& info,
                         const bool sparse) {

@@ -51,6 +51,11 @@ void writePrimalSolution(FILE* file, const HighsLp& lp,
                          const std::vector<double>& primal_solution,
                          const bool sparse = false);
 
+void writeTime(FILE* file, const double time);
+
+void writeGap(FILE* file, const double ub,
+              const double lb, const double gap);
+
 void writeModelSolution(FILE* file, const HighsModel& model,
                         const HighsSolution& solution, const HighsInfo& info,
                         const bool sparse = false);
