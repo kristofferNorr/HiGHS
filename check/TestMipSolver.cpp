@@ -512,6 +512,9 @@ TEST_CASE("MIP-get-saved-solutions", "[highs_test_mip_solver]") {
   for (HighsInt iCol = 0; iCol < highs.getLp().num_col_; iCol++)
     REQUIRE(saved_objective_and_solution[last_saved_solution].col_value[iCol] ==
             highs.getSolution().col_value[iCol]);
+  const double time = highs.getRunTime();
+    REQUIRE(saved_objective_and_solution[last_saved_solution].current_time ==
+            time);
   std::remove(solution_file.c_str());
 }
 
